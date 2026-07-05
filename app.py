@@ -10,16 +10,13 @@ Palette: Slate & Stone (cool neutrals, slate-blue primary — no purple).
 from __future__ import annotations
 
 import html
+import json
 
 import gradio as gr
 
+from inspect_run import tool_definitions
 from schemas import NeedMoreInfo, TravelBriefing
 from trace import run
-
-try:
-    from pydantic_ai import UsageLimitExceeded
-except Exception:  # pragma: no cover - import path varies by version
-    from pydantic_ai.usage import UsageLimitExceeded  # type: ignore
 
 # ---- Dark palette (black bg, white text) ------------------------------------
 BG = "#0D1017"        # page background (reads as black)
@@ -106,17 +103,26 @@ def _needinfo_md(n: NeedMoreInfo) -> str:
     return f"### 🤔 Need more info\n**Question** · {n.question}\n\n**Why** · {n.reason}\n"
 
 
+def _raw_json(raw_messages: list) -> str:
+    """Tool-definition JSON (what the model receives) + the raw message log."""
+    return json.dumps(
+        {"tool_definitions": tool_definitions(), "messages": raw_messages},
+        indent=2,
+        default=str,
+    )
+
+
 def on_run(query: str):
     if not query.strip():
-        return "<div class='card'>Type a query above.</div>", ""
+        return "<div class='card'>Type a query above.</div>", "", "{}"
     try:
-        trace, output, seq = run(query)
-    except UsageLimitExceeded as e:
-        return _row("retry", "Guardrail hit", str(e)), "### 🛑 Stopped\nThe run exceeded its `UsageLimits`."
-    except Exception as e:  # surface tool/network/auth errors plainly for a demo
-        return _row("retry", "Error", f"{type(e).__name__}: {e}"), ""
+        # trace.run() already degrades guardrail/retry-budget failures gracefully;
+        # this except is a safety net for anything unexpected (auth, bugs).
+        steps, output, seq, raw_messages = run(query)
+    except Exception as e:
+        return _row("retry", "Error", f"{type(e).__name__}: {e}"), "", "{}"
 
-    trace_html = "".join(_row(s.kind, s.title, s.body) for s in trace)
+    trace_html = "".join(_row(s.kind, s.title, s.body) for s in steps)
     trace_html += (
         f"<div class='trace-row' style='--accent:{PRIMARY}'>"
         f"<div class='trace-label'>Σ Tool sequence</div>"
@@ -129,7 +135,7 @@ def on_run(query: str):
         out_md = _needinfo_md(output)
     else:
         out_md = f"```\n{output!r}\n```"
-    return trace_html, out_md
+    return trace_html, out_md, _raw_json(raw_messages)
 
 
 EXAMPLES = [
@@ -158,8 +164,16 @@ with gr.Blocks(title="Single-Agent Lab") as demo:
             gr.Markdown("#### Validated output")
             output_out = gr.Markdown()
 
-    go.click(on_run, inputs=query, outputs=[trace_out, output_out])
-    query.submit(on_run, inputs=query, outputs=[trace_out, output_out])
+    with gr.Accordion("Raw JSON — tool schemas (sent to the model) + model messages", open=False):
+        gr.Markdown(
+            "Tool *descriptions* live in this JSON — auto-generated from each tool's "
+            "signature + docstring — **not** in the system prompt. Below that: the "
+            "model's actual `tool-call` / `tool-return` messages."
+        )
+        raw_out = gr.Code(language="json", label="run JSON")
+
+    go.click(on_run, inputs=query, outputs=[trace_out, output_out, raw_out])
+    query.submit(on_run, inputs=query, outputs=[trace_out, output_out, raw_out])
 
 
 if __name__ == "__main__":

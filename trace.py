@@ -51,11 +51,12 @@ def _args_str(part) -> str:
     return str(args)
 
 
-def run(query: str) -> tuple[list[Step], object, list[str]]:
+def run(query: str) -> tuple[list[Step], object, list[str], list]:
     """Execute one agent run.
 
-    Returns (trace steps, final output object, ordered list of tool names called).
-    The tool-name sequence is what the evaluation scores.
+    Returns (trace steps, final output object, ordered list of tool names called,
+    raw messages as JSON-able Python). The tool-name sequence is what the eval
+    scores; the raw messages power the "Raw JSON" view.
     """
     try:
         result = agent.run_sync(query, usage_limits=LIMITS)
@@ -68,7 +69,7 @@ def run(query: str) -> tuple[list[Step], object, list[str]]:
             reason=f"I couldn't resolve that place and stopped to avoid looping ({type(e).__name__}).",
         )
         return [Step("retry", "Guardrail stopped the run", str(e)),
-                Step("final", "Final answer", repr(out))], out, []
+                Step("final", "Final answer", repr(out))], out, [], []
 
     steps: list[Step] = []
     tool_sequence: list[str] = []
@@ -101,14 +102,19 @@ def run(query: str) -> tuple[list[Step], object, list[str]]:
         output = getattr(result, "data", None)
     steps.append(Step("final", "Final answer", repr(output)))
 
-    return steps, output, tool_sequence
+    try:
+        raw_messages = json.loads(result.all_messages_json())
+    except Exception:
+        raw_messages = []
+
+    return steps, output, tool_sequence, raw_messages
 
 
 if __name__ == "__main__":
     import sys
 
     q = " ".join(sys.argv[1:]) or "What should I pack for the capital of France, and is $100 a lot there?"
-    trace, output, seq = run(q)
+    trace, output, seq, _ = run(q)
     for s in trace:
         print(f"\n[{s.title}]\n{s.body}")
     print("\nTOOL SEQUENCE:", " -> ".join(seq) or "(none)")

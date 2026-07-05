@@ -92,7 +92,10 @@ description says *what* it does. Duplicating descriptions into the prompt just
 burns tokens and drifts out of sync. (Listing tools in the prompt is the older
 text-parsing style; native tool calling replaces it with this JSON.)
 
-**"Where's the model's actual tool-calling output?"** Run:
+**"Where's the model's actual tool-calling output?"** The Gradio app has a
+collapsible **"Raw JSON"** panel under the trace that fills on every run — the
+tool schemas plus the model's `tool-call` / `tool-return` messages. Or from the
+terminal:
 
 ```bash
 python inspect_run.py "Pack for a trip to Tokyo."

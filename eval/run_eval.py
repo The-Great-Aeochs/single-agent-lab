@@ -66,7 +66,7 @@ def main() -> None:
     rows = []
     for c in cases:
         try:
-            _, output, seq = run(c["query"])
+            _, output, seq, _ = run(c["query"])
             got_type = type(output).__name__
         except Exception as e:
             rows.append({"id": c["id"], "error": f"{type(e).__name__}: {e}"})

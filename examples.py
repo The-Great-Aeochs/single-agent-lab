@@ -26,7 +26,7 @@ QUERIES = {
 def show(label: str, query: str) -> None:
     print("=" * 70)
     print(f"{label}\nQ: {query}\n")
-    trace, output, seq = run(query)
+    trace, output, seq, _ = run(query)
     for s in trace:
         print(f"  [{s.title}] {s.body}")
     print(f"\n  TOOL SEQUENCE: {' -> '.join(seq) or '(none)'}")
