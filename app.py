@@ -21,23 +21,40 @@ try:
 except Exception:  # pragma: no cover - import path varies by version
     from pydantic_ai.usage import UsageLimitExceeded  # type: ignore
 
-# ---- Slate & Stone palette --------------------------------------------------
-BG = "#F5F6F7"
-TEXT = "#222831"
-PRIMARY = "#3D5A80"
-CARD = "#FFFFFF"
-BORDER = "#DCE0E4"
-ROW = {  # trace-row accent colors, carried over from the lecture diagrams
-    "thought": "#B7791F",       # ochre
-    "action": "#2B6CB0",        # blue
-    "observation": "#2F855A",   # green
-    "retry": "#B7791F",
-    "final": "#276749",         # deep green
+# ---- Dark palette (black bg, white text) ------------------------------------
+BG = "#0D1017"        # page background (reads as black)
+CARD = "#161A22"      # cards / inputs / trace rows
+TEXT = "#E8EAED"      # near-white body text
+MUTED = "#9AA3AF"
+PRIMARY = "#7AA2E3"   # light slate-blue, readable on dark
+BORDER = "#2A2F3A"
+ROW = {  # trace-row accents, brightened for a dark background
+    "thought": "#E0A64B",       # ochre
+    "action": "#6FA8FF",        # blue
+    "observation": "#57C784",   # green
+    "retry": "#E0A64B",
+    "final": "#57C784",
 }
 ICON = {"thought": "💭", "action": "🔧", "observation": "📡", "retry": "↻", "final": "✅"}
 
+# Force a real dark theme via Gradio theme tokens (robust across component internals).
+DARK = gr.themes.Base(primary_hue="blue", neutral_hue="slate").set(
+    body_background_fill=BG,
+    body_text_color=TEXT,
+    body_text_color_subdued=MUTED,
+    background_fill_primary=CARD,
+    background_fill_secondary=BG,
+    block_background_fill=CARD,
+    block_border_color=BORDER,
+    block_label_text_color=TEXT,
+    block_title_text_color=TEXT,
+    input_background_fill=CARD,
+    input_border_color=BORDER,
+    input_placeholder_color=MUTED,
+    border_color_primary=BORDER,
+)
+
 CSS = f"""
-/* Force a consistent light look — don't inherit the OS dark theme. */
 .gradio-container {{ background: {BG} !important; }}
 .gradio-container, .gradio-container p, .gradio-container li, .gradio-container span,
 .gradio-container h1, .gradio-container h2, .gradio-container h3, .gradio-container h4 {{
@@ -45,7 +62,6 @@ CSS = f"""
 }}
 h3, h4 {{ color: {TEXT} !important; }}                 /* section headers, output card titles */
 #title, #title h1 {{ color: {PRIMARY} !important; }}
-/* Readable input box regardless of system dark mode. */
 .gradio-container textarea, .gradio-container input[type="text"] {{
     background: {CARD} !important; color: {TEXT} !important;
 }}
@@ -54,7 +70,6 @@ h3, h4 {{ color: {TEXT} !important; }}                 /* section headers, outpu
     border-left: 4px solid var(--accent); border-radius: 8px;
     padding: 10px 12px; margin: 8px 0;
 }}
-/* Trace labels keep their semantic accent color; body stays ink. */
 .trace-label {{ font-weight: 700; color: var(--accent) !important; font-size: 0.8rem;
     text-transform: uppercase; letter-spacing: 0.04em; }}
 .trace-body {{ color: {TEXT} !important; white-space: pre-wrap;
@@ -150,8 +165,8 @@ with gr.Blocks(title="Single-Agent Lab") as demo:
 if __name__ == "__main__":
     # Gradio 6 takes theme/css on launch(); older versions accept them on Blocks.
     try:
-        demo.launch(theme=gr.themes.Base(), css=CSS)
+        demo.launch(theme=DARK, css=CSS)
     except TypeError:
         demo.css = CSS
-        demo.theme = gr.themes.Base()
+        demo.theme = DARK
         demo.launch()

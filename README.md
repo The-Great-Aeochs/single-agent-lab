@@ -30,13 +30,14 @@ in the model's weights.
 shortcut it from memory. It has to call `geocode`, observe the coordinates, and
 feed them forward. That forced link is the lecture, live.
 
-Notice the division of labour: the model uses **its own knowledge** to turn free
-text (a state, a country, a landmark) into a concrete city to geocode — that
-static disambiguation is fine to do from memory. What it must **not** invent is
-the dynamic, tool-only part: coordinates, today's weather, today's rate.
-`get_capital` is an *optional* shortcut for a bare country name, **not** a
-required step — the geocoder resolves cities, the model resolves the rest. (This
-is why typing a non-country like *Meghalaya* works instead of dead-ending.)
+Notice the division of labour. To turn free text (a state, a country, a landmark)
+into a concrete city, the agent uses a **`web_search` tool** — no hardcoded table
+of capitals, no relying on the model's memory. It searches the open web (e.g.
+"main city of Meghalaya"), reads the result, and geocodes the city it finds. What
+it must **not** invent is the dynamic, tool-only part: coordinates, today's
+weather, today's rate. This is why typing a non-country like *Meghalaya* works —
+and why a made-up place like *Zorbania* gets searched, found to be fictional, and
+declined instead of hallucinated.
 
 ## What each lecture idea maps to
 
@@ -44,6 +45,7 @@ is why typing a non-country like *Meghalaya* works instead of dead-ending.)
 |---|---|
 | Thought → Action → Observation loop | the trace panel in `app.py`, built from `trace.py` |
 | Tool calling (model decides + tool responds) | `tools/*.py`, called by the model, executed by us |
+| Web search to resolve any place | `tools/web_search.py` (keyless DuckDuckGo) |
 | Structured output | `TravelBriefing` in `schemas.py`, via `output_type=` |
 | Schema validation (automatic) | type hints on tools and output → JSON Schema |
 | Business-logic validation (manual) | `ModelRetry(...)` in tools; `@agent.output_validator` |
@@ -101,17 +103,17 @@ cases in `eval/cases.json`.
    the aggregate, then discuss when each lens is the right one — especially for
    the abstention cases, where `expected_sequence` is `[]` but the model may
    still probe a tool before giving up.
-2. **Add a dynamic destination tool.** Give the agent a `web_search`-style tool
-   and a query like *"pack for the capital of the next Olympics host."* Score
-   whether it uses the new tool **only when needed** — and whether the identical
-   downstream `geocode → get_forecast` chain still runs.
+2. **Score web-search discipline.** The agent already has a `web_search` tool
+   (`tools/web_search.py`). Add cases like *"pack for the capital of the next
+   Olympics host"* (needs search) alongside *"pack for Tokyo"* (doesn't), and
+   write a metric that rewards using `web_search` **only when needed** — while the
+   identical downstream `geocode → get_forecast` chain still runs either way.
 3. **Break the chain on purpose.** Remove the "`get_forecast` needs coordinates"
    rule from the system prompt and re-run the eval. Watch `dependency_respected`
    fall. Explain, in terms of the lecture, why the type of `get_forecast`'s
    argument is doing more work than the prompt.
-4. **Kill the last hardcoded table.** `tools/capital.py` is a ~45-entry
-   country→capital dict — it can't handle states, regions, or landmarks, and it's
-   now redundant since the model resolves places itself before geocoding. Remove
-   `get_capital` entirely, drop it from `agent.py`, and confirm the eval still
-   passes. Then discuss: what did the tool actually buy us, and when *is* a static
-   lookup tool worth building versus letting the model decide?
+4. **Harden the web-search tool.** `web_search` hits DuckDuckGo live, so it can be
+   slow or rate-limited. Add a small cache (memoize by query) and a fallback
+   search backend, and decide what the tool should return when every backend
+   fails — a `ModelRetry`, or a result the model can reason about? Discuss how that
+   choice changes the agent's behavior on a flaky network.
