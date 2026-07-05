@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import httpx
 
+from pydantic_ai import ModelRetry
 from schemas import Weather
 
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
@@ -49,17 +50,21 @@ async def get_forecast(latitude: float, longitude: float) -> Weather:
         latitude: Degrees north, from geocode().
         longitude: Degrees east, from geocode().
     """
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(
-            FORECAST_URL,
-            params={
-                "latitude": latitude,
-                "longitude": longitude,
-                "current": "temperature_2m,weather_code,wind_speed_10m",
-            },
-        )
-        resp.raise_for_status()
-        current = resp.json()["current"]
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                FORECAST_URL,
+                params={
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "current": "temperature_2m,weather_code,wind_speed_10m",
+                },
+            )
+            resp.raise_for_status()
+            current = resp.json()["current"]
+    except httpx.HTTPError as e:
+        # Transient (5xx, timeout, network). Let the model retry rather than crash.
+        raise ModelRetry(f"Weather service is temporarily unavailable ({type(e).__name__}). Try again.")
 
     return Weather(
         temp_c=current["temperature_2m"],

@@ -31,16 +31,20 @@ async def convert_currency(amount: float, from_currency: str, to_currency: str) 
     if frm == to:
         return Conversion(amount=amount, from_currency=frm, to_currency=to, rate=1.0, converted=amount)
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(FX_URL, params={"amount": amount, "from": frm, "to": to})
-        if resp.status_code != 200:
-            raise ModelRetry(
-                f"Couldn't convert {frm}->{to}. Check both are valid ISO codes (e.g. USD, EUR, JPY)."
-            )
-        data = resp.json()
-        rates = data.get("rates") or {}
-        if to not in rates:
-            raise ModelRetry(f"No rate returned for {frm}->{to}. Are both valid ISO currency codes?")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(FX_URL, params={"amount": amount, "from": frm, "to": to})
+    except httpx.HTTPError as e:
+        raise ModelRetry(f"FX service is temporarily unavailable ({type(e).__name__}). Try again.")
+
+    if resp.status_code != 200:
+        raise ModelRetry(
+            f"Couldn't convert {frm}->{to}. Check both are valid ISO codes (e.g. USD, EUR, JPY)."
+        )
+    data = resp.json()
+    rates = data.get("rates") or {}
+    if to not in rates:
+        raise ModelRetry(f"No rate returned for {frm}->{to}. Are both valid ISO currency codes?")
 
     converted = rates[to]
     return Conversion(

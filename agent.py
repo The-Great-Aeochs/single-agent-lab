@@ -84,7 +84,7 @@ agent.tool_plain(retries=2)(convert_currency)
 
 # Guardrail: bound the loop. UsageLimits caps TOTAL work in a single run, so a
 # fan-out request ("plan a 5-country trip") can't spiral into 40 tool calls.
-# Different governor from per-tool `retries` above.
+# Different controller from per-tool `retries` above.
 LIMITS = UsageLimits(request_limit=6, tool_calls_limit=10)
 
 

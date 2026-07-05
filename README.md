@@ -74,7 +74,37 @@ Frankfurter for FX), so only the model needs a key.
 python app.py                 # Gradio UI with the live trace panel
 python examples.py            # the three canonical queries in the terminal
 python trace.py "Pack for Tokyo"   # one query, printed trace
+python inspect_run.py "Pack for Tokyo"   # the raw JSON: tool schemas + model responses
 python eval/run_eval.py       # score the agent
+```
+
+## Seeing the JSON (not just the trace)
+
+Two questions worth demoing:
+
+**"The tool descriptions aren't in the system prompt — should they be?"** No — and
+they already reach the model. With **native tool calling**, each tool's name,
+description, and parameter schema are sent as a structured **JSON tool
+definition**, generated automatically from the Python signature + docstring (look
+at any `tools/*.py` docstring). The system prompt is for *orchestration* — *when*
+to use which tool and in what order (`agent.py`'s `SYSTEM_PROMPT`); the tool's own
+description says *what* it does. Duplicating descriptions into the prompt just
+burns tokens and drifts out of sync. (Listing tools in the prompt is the older
+text-parsing style; native tool calling replaces it with this JSON.)
+
+**"Where's the model's actual tool-calling output?"** Run:
+
+```bash
+python inspect_run.py "Pack for a trip to Tokyo."
+```
+
+It prints (1) the **tool-definition JSON** the model receives, and (2) the whole
+conversation as **JSON** — every assistant `tool-call` (`tool_name` + `args` +
+`tool_call_id`), every `tool-return`, token `usage`, and the final typed output.
+For the literal HTTP request/response on the wire (the provider's own JSON):
+
+```bash
+OPENAI_LOG=debug python inspect_run.py "Pack for a trip to Tokyo."
 ```
 
 ## Evaluation

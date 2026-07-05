@@ -26,10 +26,14 @@ async def geocode(city: str) -> LatLon:
     Args:
         city: The city to locate, e.g. "Paris".
     """
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(GEOCODE_URL, params={"name": city, "count": 1, "language": "en"})
-        resp.raise_for_status()
-        results = resp.json().get("results") or []
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(GEOCODE_URL, params={"name": city, "count": 1, "language": "en"})
+            resp.raise_for_status()
+            results = resp.json().get("results") or []
+    except httpx.HTTPError as e:
+        # Transient (5xx, timeout, network). Let the model retry rather than crash.
+        raise ModelRetry(f"Geocoding service is temporarily unavailable ({type(e).__name__}). Try again.")
 
     if not results:
         # Type-valid string, business-invalid value → ModelRetry, not a crash.
