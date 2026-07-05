@@ -66,28 +66,32 @@ python trace.py "Pack for Tokyo"   # one query, printed trace
 python eval/run_eval.py       # score the agent
 ```
 
-## Evaluation — tool-sequence accuracy
+## Evaluation
 
 A workflow's tool order is fixed in code, so it's trivially correct. An agent
 *chooses* its order at runtime — so whether it took the right path is a real,
-measurable thing. `eval/run_eval.py` scores:
+measurable thing. `eval/run_eval.py` ships two metrics:
 
 - **output_type_accuracy** — `TravelBriefing` vs `NeedMoreInfo`, as expected.
-- **tool_sequence_accuracy** — order-aware overlap (LCS) of the tools it called
-  vs the expected sequence. Partial credit: getting `geocode → get_forecast`
-  right still scores even if the model adds an extra call.
 - **dependency_respected** — did `geocode` come **before** `get_forecast`? The
   single most important ordering in this agent.
 
-Add or edit cases in `eval/cases.json`.
+It **also prints the actual tool calls per case** and leaves a stubbed
+`tool_sequence_accuracy()` for you to implement (see Assignment 1). Add or edit
+cases in `eval/cases.json`.
 
 ## Assignments
 
-1. **Sharpen tool-sequence accuracy.** LCS gives partial credit but doesn't
-   penalize *wasted* calls. Add an **efficiency** metric: `len(expected) /
-   len(actual)` (1.0 = no redundant calls), and a strict **normalized
-   edit-distance** score (Levenshtein over the tool sequences). Report all three
-   and discuss when each is the right lens.
+1. **Implement tool-sequence accuracy.** `eval/run_eval.py` has a stubbed
+   `tool_sequence_accuracy(actual, expected)` that currently raises
+   `NotImplementedError`. Implement it — and don't stop at one metric. Try an
+   **LCS-based** score (`longest common subsequence / len(expected)`, partial
+   credit), a strict **exact-match** rate, a normalized **edit-distance**
+   (Levenshtein) score, and an **efficiency** score (`len(expected) /
+   len(actual)`, penalizing wasted calls). Wire them into the per-case table and
+   the aggregate, then discuss when each lens is the right one — especially for
+   the abstention cases, where `expected_sequence` is `[]` but the model may
+   still probe a tool before giving up.
 2. **Add a dynamic destination tool.** Give the agent a `web_search`-style tool
    and a query like *"pack for the capital of the next Olympics host."* Score
    whether it uses the new tool **only when needed** — and whether the identical

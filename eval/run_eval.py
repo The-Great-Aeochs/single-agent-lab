@@ -1,16 +1,12 @@
-"""Evaluate the agent — with tool-sequence accuracy front and center.
+"""Evaluate the agent.
 
 A workflow's tool order is fixed in code, so it's trivially "correct." An agent
-*chooses* its order at runtime, so whether it took the right path is a real,
-measurable thing. That is what we score here.
+*chooses* its order at runtime — so whether it took the right path is a real,
+measurable thing. This harness ships two metrics and leaves the headline one to
+you (see the ASSIGNMENT below).
 
-Metrics per case:
+Ships:
   • output_type_correct  — did it return TravelBriefing vs NeedMoreInfo as expected?
-  • sequence_accuracy    — order-aware overlap between the tools it called and the
-                           expected sequence (LCS / len(expected)). Partial credit:
-                           getting geocode→forecast right still scores even if it
-                           adds an extra call.
-  • exact_sequence       — did the tool order match exactly?
   • dependency_respected — for cases with both, did geocode come BEFORE get_forecast?
                            (the single most important ordering in this agent)
 
@@ -31,20 +27,27 @@ from trace import run  # noqa: E402
 CASES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cases.json")
 
 
-def lcs_len(a: list[str], b: list[str]) -> int:
-    """Longest common subsequence length — order-aware overlap."""
-    dp = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]
-    for i in range(len(a) - 1, -1, -1):
-        for j in range(len(b) - 1, -1, -1):
-            dp[i][j] = dp[i + 1][j + 1] + 1 if a[i] == b[j] else max(dp[i + 1][j], dp[i][j + 1])
-    return dp[0][0]
-
-
-def sequence_accuracy(actual: list[str], expected: list[str]) -> float:
-    """1.0 = expected order fully present (extra calls don't help but don't erase it)."""
-    if not expected:
-        return 1.0 if not actual else 0.0  # expected no tools; any call is a miss
-    return lcs_len(actual, expected) / len(expected)
+# ---------------------------------------------------------------------------
+# ASSIGNMENT — implement `tool_sequence_accuracy` yourself.
+#
+# This harness scores output type and the geocode->get_forecast dependency, but
+# it deliberately does NOT score how well the whole tool *sequence* matched the
+# expected one. That's your task.
+#
+# You have everything you need: each case in cases.json carries an
+# `expected_sequence`, and every run returns the actual `tool_sequence` from
+# `trace.run()`. Implement a metric (or several) that scores the ordered overlap,
+# then wire it into the per-case table and the aggregate below. Ideas:
+#   • LCS-based accuracy   — longest common subsequence / len(expected)
+#   • exact-match rate     — did the order match exactly?
+#   • edit distance        — normalized Levenshtein over the two sequences
+#   • efficiency           — len(expected) / len(actual), penalizing wasted calls
+# Then argue when each lens is the right one — especially for the abstention
+# cases, where `expected_sequence` is [] but the model may still probe a tool
+# before deciding to give up.
+# ---------------------------------------------------------------------------
+def tool_sequence_accuracy(actual: list[str], expected: list[str]) -> float:
+    raise NotImplementedError("ASSIGNMENT: implement a tool-sequence-accuracy metric here.")
 
 
 def dependency_respected(actual: list[str], expected: list[str]) -> bool | None:
@@ -69,14 +72,11 @@ def main() -> None:
             rows.append({"id": c["id"], "error": f"{type(e).__name__}: {e}"})
             continue
 
-        expected = c["expected_sequence"]
         rows.append(
             {
                 "id": c["id"],
                 "type_ok": got_type == c["expected_output"],
-                "seq_acc": sequence_accuracy(seq, expected),
-                "exact": seq == expected,
-                "dep_ok": dependency_respected(seq, expected),
+                "dep_ok": dependency_respected(seq, c["expected_sequence"]),
                 "got_type": got_type,
                 "seq": " -> ".join(seq) or "(none)",
             }
@@ -90,21 +90,19 @@ def main() -> None:
         dep = {True: "yes", False: "NO", None: "-"}[r["dep_ok"]]
         print(
             f"  {r['id']:<16} type={'ok' if r['type_ok'] else 'MISS'} "
-            f"({r['got_type']:<13}) seq_acc={r['seq_acc']:.2f} "
-            f"exact={'y' if r['exact'] else 'n'} dep={dep}\n"
+            f"({r['got_type']:<13}) dep={dep}\n"
             f"                   calls: {r['seq']}"
         )
 
     scored = [r for r in rows if "error" not in r]
     if scored:
         type_acc = sum(r["type_ok"] for r in scored) / len(scored)
-        seq_acc = sum(r["seq_acc"] for r in scored) / len(scored)
         deps = [r["dep_ok"] for r in scored if r["dep_ok"] is not None]
         dep_acc = (sum(deps) / len(deps)) if deps else float("nan")
         print("\n=== Aggregate ===")
         print(f"  output_type_accuracy   {type_acc:.2f}")
-        print(f"  tool_sequence_accuracy {seq_acc:.2f}   <-- the agent-vs-workflow metric")
         print(f"  dependency_respected   {dep_acc:.2f}")
+        print(f"  tool_sequence_accuracy (ASSIGNMENT — implement tool_sequence_accuracy())")
 
 
 if __name__ == "__main__":
