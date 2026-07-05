@@ -37,17 +37,28 @@ ROW = {  # trace-row accent colors, carried over from the lecture diagrams
 ICON = {"thought": "💭", "action": "🔧", "observation": "📡", "retry": "↻", "final": "✅"}
 
 CSS = f"""
-.gradio-container {{ background: {BG}; color: {TEXT}; }}
-#title {{ color: {PRIMARY}; }}
+/* Force a consistent light look — don't inherit the OS dark theme. */
+.gradio-container {{ background: {BG} !important; }}
+.gradio-container, .gradio-container p, .gradio-container li, .gradio-container span,
+.gradio-container h1, .gradio-container h2, .gradio-container h3, .gradio-container h4 {{
+    color: {TEXT} !important;
+}}
+h3, h4 {{ color: {TEXT} !important; }}                 /* section headers, output card titles */
+#title, #title h1 {{ color: {PRIMARY} !important; }}
+/* Readable input box regardless of system dark mode. */
+.gradio-container textarea, .gradio-container input[type="text"] {{
+    background: {CARD} !important; color: {TEXT} !important;
+}}
 .trace-row {{
     background: {CARD}; border: 1px solid {BORDER};
     border-left: 4px solid var(--accent); border-radius: 8px;
     padding: 10px 12px; margin: 8px 0;
 }}
-.trace-label {{ font-weight: 700; color: var(--accent); font-size: 0.8rem;
+/* Trace labels keep their semantic accent color; body stays ink. */
+.trace-label {{ font-weight: 700; color: var(--accent) !important; font-size: 0.8rem;
     text-transform: uppercase; letter-spacing: 0.04em; }}
-.trace-body {{ color: {TEXT}; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.86rem; margin-top: 4px; }}
+.trace-body {{ color: {TEXT} !important; white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86rem; margin-top: 4px; }}
 .card {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 10px; padding: 16px; }}
 """
 

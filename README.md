@@ -10,25 +10,33 @@ run *demonstrates* the lecture instead of hiding it.
 
 ## The use-case
 
-Ask for a travel briefing. The agent has to resolve a place, look up **today's**
-weather and exchange rate, and decide what to pack and whether your money goes
-far — none of which is in the model's weights.
+Type **anything** as a destination — a city, a state, a country, a landmark. The
+agent turns it into a concrete place, looks up **today's** weather and exchange
+rate, and decides what to pack and whether your money goes far — none of which is
+in the model's weights.
 
 ```
-"Pack for the capital of France, and is $100 a lot there?"
+"Plan a trip to Meghalaya on a ~10k budget"
 
-💭 Thought   I don't know today's weather; I must look it up.
-🔧 Action    get_capital("France")          → "Paris"
-🔧 Action    geocode("Paris")               → { lat: 48.85, lon: 2.35 }   ← un-fakeable
+💭 Thought   Meghalaya is a state — its main city is Shillong. I'll look that up.
+🔧 Action    geocode("Shillong")            → { lat: 25.57, lon: 91.88 }   ← un-fakeable
 💭 Thought   get_forecast needs THOSE coords
-🔧 Action    get_forecast(48.85, 2.35)      → 8°C, rain
-🔧 Action    convert_currency(100,USD,EUR)  → €92 @ today's rate
+🔧 Action    get_forecast(25.57, 91.88)     → 22°C, overcast
+🔧 Action    convert_currency(10000, INR..) → grounds the budget note
 ✅ Final     TravelBriefing(...)            ← validated Pydantic object
 ```
 
 `get_forecast` takes **latitude/longitude, not a city** — so the model *cannot*
 shortcut it from memory. It has to call `geocode`, observe the coordinates, and
 feed them forward. That forced link is the lecture, live.
+
+Notice the division of labour: the model uses **its own knowledge** to turn free
+text (a state, a country, a landmark) into a concrete city to geocode — that
+static disambiguation is fine to do from memory. What it must **not** invent is
+the dynamic, tool-only part: coordinates, today's weather, today's rate.
+`get_capital` is an *optional* shortcut for a bare country name, **not** a
+required step — the geocoder resolves cities, the model resolves the rest. (This
+is why typing a non-country like *Meghalaya* works instead of dead-ending.)
 
 ## What each lecture idea maps to
 
@@ -41,6 +49,7 @@ feed them forward. That forced link is the lecture, live.
 | Business-logic validation (manual) | `ModelRetry(...)` in tools; `@agent.output_validator` |
 | Per-tool retry budgets | `agent.tool_plain(retries=N)` in `agent.py` |
 | Guardrails (bound the loop) | `UsageLimits(...)` in `agent.py` |
+| Graceful degradation when a guardrail fires | `trace.py` catches it → returns `NeedMoreInfo`, never crashes |
 | Fail, don't hallucinate | `output_type=[TravelBriefing, NeedMoreInfo]` union |
 
 ## Setup
@@ -100,3 +109,9 @@ cases in `eval/cases.json`.
    rule from the system prompt and re-run the eval. Watch `dependency_respected`
    fall. Explain, in terms of the lecture, why the type of `get_forecast`'s
    argument is doing more work than the prompt.
+4. **Kill the last hardcoded table.** `tools/capital.py` is a ~45-entry
+   country→capital dict — it can't handle states, regions, or landmarks, and it's
+   now redundant since the model resolves places itself before geocoding. Remove
+   `get_capital` entirely, drop it from `agent.py`, and confirm the eval still
+   passes. Then discuss: what did the tool actually buy us, and when *is* a static
+   lookup tool worth building versus letting the model decide?

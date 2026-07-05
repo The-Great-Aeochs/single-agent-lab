@@ -16,6 +16,19 @@ import json
 from dataclasses import dataclass
 
 from agent import LIMITS, agent
+from schemas import NeedMoreInfo
+
+# Guardrail / loop-limit exceptions we degrade gracefully instead of crashing on.
+try:
+    from pydantic_ai import UsageLimitExceeded
+except Exception:  # pragma: no cover - import path varies by version
+    from pydantic_ai.usage import UsageLimitExceeded  # type: ignore
+try:
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+except Exception:  # pragma: no cover
+    UnexpectedModelBehavior = ()  # type: ignore
+
+GUARDRAIL_ERRORS = tuple(e for e in (UsageLimitExceeded, UnexpectedModelBehavior) if isinstance(e, type))
 
 
 @dataclass
@@ -44,7 +57,18 @@ def run(query: str) -> tuple[list[Step], object, list[str]]:
     Returns (trace steps, final output object, ordered list of tool names called).
     The tool-name sequence is what the evaluation scores.
     """
-    result = agent.run_sync(query, usage_limits=LIMITS)
+    try:
+        result = agent.run_sync(query, usage_limits=LIMITS)
+    except GUARDRAIL_ERRORS as e:
+        # A guardrail (UsageLimits) or an exhausted retry budget fired. That is
+        # the guardrail working — bound the blast radius. Degrade gracefully to
+        # an abstention instead of crashing the app.
+        out = NeedMoreInfo(
+            question="Could you give a real, specific destination — a city or town?",
+            reason=f"I couldn't resolve that place and stopped to avoid looping ({type(e).__name__}).",
+        )
+        return [Step("retry", "Guardrail stopped the run", str(e)),
+                Step("final", "Final answer", repr(out))], out, []
 
     steps: list[Step] = []
     tool_sequence: list[str] = []

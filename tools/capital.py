@@ -59,10 +59,11 @@ CAPITALS: dict[str, str] = {
 
 
 def get_capital(country: str) -> str:
-    """Return the capital city of a country.
+    """OPTIONAL shortcut: return the capital city of a country.
 
-    Call this when the user names a country rather than a city — you must look
-    the capital up here, not recall it from memory.
+    You do NOT have to use this — for a state, region, city, or landmark, pick a
+    city yourself and call geocode on it directly. This only helps for a bare
+    country name where you want its capital as a representative city.
 
     Args:
         country: The country name, e.g. "France".
@@ -70,7 +71,8 @@ def get_capital(country: str) -> str:
     key = country.strip().lower()
     if key not in CAPITALS:
         raise ModelRetry(
-            f"I don't have the capital of {country!r} on file. "
-            f"Ask the user for the specific city instead of guessing."
+            f"{country!r} isn't in my small country table. Pick a representative "
+            f"city for it yourself (e.g. a state's main city) and geocode that "
+            f"directly — don't stop to ask the user."
         )
     return CAPITALS[key]
