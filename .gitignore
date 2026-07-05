@@ -10,3 +10,6 @@ venv/
 
 # OS
 .DS_Store
+
+# Local-only docs
+*.pdf
