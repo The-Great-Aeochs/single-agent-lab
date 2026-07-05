@@ -1,0 +1,30 @@
+[
+  {
+    "id": "dependent_chain",
+    "query": "What should I pack for the capital of France, and is $100 a lot there?",
+    "expected_sequence": ["get_capital", "geocode", "get_forecast", "convert_currency"],
+    "expected_output": "TravelBriefing",
+    "note": "Full dependent chain: country -> capital -> coords -> forecast, plus FX."
+  },
+  {
+    "id": "city_direct",
+    "query": "Pack for a trip to Tokyo.",
+    "expected_sequence": ["geocode", "get_forecast"],
+    "expected_output": "TravelBriefing",
+    "note": "The load-bearing dependency: geocode MUST precede get_forecast."
+  },
+  {
+    "id": "unknown_place",
+    "query": "Pack for a trip to Zorbania and give me the exchange rate.",
+    "expected_sequence": [],
+    "expected_output": "NeedMoreInfo",
+    "note": "Fictional place. Geocode fails -> should abstain, not fabricate."
+  },
+  {
+    "id": "no_destination",
+    "query": "What should I pack for my trip?",
+    "expected_sequence": [],
+    "expected_output": "NeedMoreInfo",
+    "note": "No destination given -> ask, and call no tools."
+  }
+]

@@ -1,0 +1,4 @@
+pydantic-ai>=0.0.36
+gradio>=4.44
+httpx>=0.27
+python-dotenv>=1.0
