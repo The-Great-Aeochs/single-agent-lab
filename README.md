@@ -48,6 +48,7 @@ hints, not written in the system prompt. See them with `inspect_run.py`.
 ## Assignments
 
 1. Implement `tool_sequence_accuracy()` in `eval/run_eval.py` (LCS / exact-match / edit-distance / efficiency).
-2. Score web-search discipline — reward using `web_search` only when needed.
-3. Remove the "`get_forecast` needs coordinates" prompt rule and watch `dependency_respected` fall.
-4. Harden `web_search` — add a cache + fallback backend; decide what to return on total failure.
+2. Read about these specific code blobs from smol agents repo 
+  a. File: agents.py, MultiStepAgent._run_stream, lines ~540-610.
+  b. File: agents.py, MultiStepAgent.write_memory_to_messages, lines ~758-770. (list of steps becomes the list of messages sent to the model)
+  c. File: agents.py, ToolCallingAgent._step_stream, lines ~1276-1360. (one full Thought-Action step for the JSON format)
