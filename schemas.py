@@ -1,7 +1,6 @@
 """Typed contracts for the agent.
 
-These Pydantic models are the *type-checking* story from the lecture, made
-concrete. Two kinds of validation ride on them:
+These Pydantic models are for type checking. Two kinds of validation types on them:
 
   1. Schema validation (automatic) — every type hint below becomes JSON Schema
      that the model must satisfy. Pydantic's SchemaValidator checks the model's
@@ -11,9 +10,8 @@ concrete. Two kinds of validation ride on them:
      (`geocode("Pariss")` is a valid string but no such city) are caught by
      raising `ModelRetry(...)` inside a tool, or in an @agent.output_validator.
 
-`LatLon` is the star of the dependent chain: it is *produced* by `geocode()`
-and *consumed* by `get_forecast()`. The model cannot invent a `LatLon` from its
-weights — it has to call the tool, observe the result, and feed it forward.
+`LatLon` is produced by `geocode()` and consumed by `get_forecast()`. The model cannot invent a `LatLon` from its
+weights, it has to call the tool, observe the result, and feed it forward.
 That is "step N's input depends on step N-1's output," enforced by types.
 """
 
@@ -31,7 +29,7 @@ class LatLon(BaseModel):
 
 
 class Weather(BaseModel):
-    """A current-conditions snapshot. The packing list must follow from this."""
+    """A current-conditions snapshot. The packing list must be derived from this."""
 
     temp_c: float
     condition: str
@@ -39,7 +37,7 @@ class Weather(BaseModel):
 
 
 class Conversion(BaseModel):
-    """A currency conversion at today's rate. The budget note must follow from this."""
+    """A currency conversion at today's rate. The budget note must be derived from this."""
 
     amount: float
     from_currency: str
@@ -48,10 +46,9 @@ class Conversion(BaseModel):
     converted: float
 
 
-# ---- The final output is a UNION: succeed with a briefing, or ask for help ----
-# `output_type=[TravelBriefing, NeedMoreInfo]` lets the model return the *other*
-# type when it cannot ground an answer in tool results. That is "fail, don't
-# hallucinate," enforced by the type system rather than by hope.
+# The final output is a UNION: succeed with a briefing, or ask for help.
+# `output_type=[TravelBriefing, NeedMoreInfo]` lets the model return the other
+# type when it cannot ground an answer in tool results. This is enforced by the type system, not by hope.
 
 
 class TravelBriefing(BaseModel):
