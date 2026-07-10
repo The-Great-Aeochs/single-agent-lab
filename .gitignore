@@ -1,0 +1,13 @@
+# Secrets — never commit real API keys
+.env
+
+# Python virtual environment
+.venv/
+venv/
+
+# Python bytecode caches
+__pycache__/
+*.pyc
+
+# Local docs kept as PDF
+*.pdf
